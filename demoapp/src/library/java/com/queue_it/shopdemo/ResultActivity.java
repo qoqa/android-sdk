@@ -2,14 +2,14 @@ package com.queue_it.shopdemo;
 
 import android.content.Intent;
 import android.os.Bundle;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import android.support.v4.content.res.ResourcesCompat;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.res.ResourcesCompat;
-
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 public class ResultActivity extends AppCompatActivity {
     @Override

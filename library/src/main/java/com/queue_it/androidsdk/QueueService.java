@@ -10,6 +10,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -19,6 +20,7 @@ import java.util.TimeZone;
 
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -30,7 +32,6 @@ public class QueueService {
     private String _customerId;
     private String _eventOrAliasId;
     private String _userId;
-    private String _enqueueToken;
     private String _userAgent;
     private String _sdkVersion;
     private String _layoutName;
@@ -39,23 +40,26 @@ public class QueueService {
 
     public static boolean IsTest = false;
 
-    private String getApiUrl()
-    {
-        if (IsTest) {
-            return "https://%s.test.queue-it.net/api/queue/%s/%s/appenqueue";
-        } else {
-            return "https://%s.queue-it.net/api/queue/%s/%s/appenqueue";
-        }
+    private URL getApiUrl() {
+        String hostname = String.format(IsTest ?
+                        "%s.test.queue-it.net" :
+                        "%s.queue-it.net",
+                _customerId);
+        String path = String.format("api/queue/%s/%s/appenqueue", _customerId, _eventOrAliasId);
+        return new HttpUrl.Builder()
+                .scheme("https")
+                .host(hostname)
+                .addPathSegments(path)
+                .addQueryParameter("userId", _userId)
+                .build().url();
     }
 
-    public QueueService(String customerId, String eventOrAliasId, String userId, String enqueueToken,
+    public QueueService(String customerId, String eventOrAliasId, String userId,
                         String userAgent, String sdkVersion, String layoutName,
-                        String language, QueueServiceListener queueServiceListener)
-    {
+                        String language, QueueServiceListener queueServiceListener) {
         _customerId = customerId;
         _eventOrAliasId = eventOrAliasId;
         _userId = userId;
-        _enqueueToken = enqueueToken;
         _userAgent = userAgent;
         _sdkVersion = sdkVersion;
         _layoutName = layoutName;
@@ -65,19 +69,16 @@ public class QueueService {
 
     public static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
-    public void init(final Context context)
-    {
-        String url = String.format(getApiUrl(), _customerId, _customerId, _eventOrAliasId);
-
+    public void init(final Context context) {
+        URL enqueueUrl = getApiUrl();
         OkHttpClient client = new OkHttpClient();
-
         String putBody = getJsonObject().toString();
         RequestBody body = RequestBody.create(JSON, putBody);
 
-        Log.v("QueueITEngine", "API call " + getISO8601StringForDate(Calendar.getInstance().getTime()) + ": " + url + ": " + putBody);
+        Log.v("QueueITEngine", "API call " + getISO8601StringForDate(Calendar.getInstance().getTime()) + ": " + enqueueUrl.toString() + ": " + putBody);
 
         Request request = new Request.Builder()
-                .url(url)
+                .url(enqueueUrl)
                 .put(body)
                 .build();
         client.newCall(request).enqueue(new Callback() {
@@ -96,8 +97,7 @@ public class QueueService {
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                if (!response.isSuccessful())
-                {
+                if (!response.isSuccessful()) {
                     final String errorMessage = String.format("%s %s", response.message(), response.body().string());
                     final int code = response.code();
                     mainHandler.post(new Runnable() {
@@ -106,24 +106,25 @@ public class QueueService {
                             _queueServiceListener.onFailure(errorMessage, code);
                         }
                     });
-
                     return;
                 }
 
                 final String body = response.body().string();
 
                 try {
-
                     JSONObject jsonObject = new JSONObject(body);
                     final String queueId = optString(jsonObject, "QueueId");
                     final String queueUrl = optString(jsonObject, "QueueUrl");
                     final int queueUrlTtlInMinutes = optInt(jsonObject, "QueueUrlTTLInMinutes");
                     final String eventTargetUrl = optString(jsonObject, "EventTargetUrl");
-
+                    final String queueItToken = optString(jsonObject, "QueueitToken");
                     mainHandler.post(new Runnable() {
                         @Override
                         public void run() {
-                            _queueServiceListener.onSuccess(queueId, queueUrl, queueUrlTtlInMinutes, eventTargetUrl);
+                            String updatedQueueUrl = QueueUrlHelper.urlUpdateNeeded(queueUrl, _userId) ?
+                                    QueueUrlHelper.updateUrl(queueUrl, _userId).toString() :
+                                    queueUrl;
+                            _queueServiceListener.onSuccess(queueId, updatedQueueUrl, queueUrlTtlInMinutes, eventTargetUrl, queueItToken);
                         }
                     });
                 } catch (JSONException e) {
@@ -144,30 +145,26 @@ public class QueueService {
         return dateFormat.format(date);
     }
 
-    private String optString(JSONObject json, String key)
-    {
+    private String optString(JSONObject json, String key) {
         if (json.isNull(key))
             return null;
         else
             return json.optString(key, null);
     }
 
-    private int optInt(JSONObject json, String key)
-    {
+    private int optInt(JSONObject json, String key) {
         if (json.isNull(key))
             return 0;
         else
             return json.optInt(key, 0);
     }
 
-    private JSONObject getJsonObject()
-    {
+    private JSONObject getJsonObject() {
         try {
             JSONObject jsonObject = new JSONObject();
             jsonObject.put("userId", _userId);
             jsonObject.put("userAgent", _userAgent);
             jsonObject.put("sdkVersion", _sdkVersion);
-            jsonObject.put("enqueueToken", _enqueueToken);
             if (!TextUtils.isEmpty(_layoutName)) {
                 jsonObject.put("layoutName", _layoutName);
             }

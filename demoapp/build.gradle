@@ -1,13 +1,13 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion rootProject.compileSdkVersion
-    buildToolsVersion rootProject.buildToolsVersion
+    compileSdkVersion 30
+    buildToolsVersion "29.0.2"
 
     defaultConfig {
         applicationId "com.queue_it.shopdemo"
-        minSdkVersion rootProject.minSdkVersion
-        targetSdkVersion rootProject.targetSdkVersion
+        minSdkVersion 15
+        targetSdkVersion 30
         versionCode 1
         versionName "1.0"
     }
@@ -17,10 +17,30 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
+    lintOptions {
+        abortOnError false
+    }
+
+    flavorDimensions "androidx"
+    productFlavors{
+        library_androidx
+        //Note that this requires useAndroidx=false
+        library
+    }
 }
 
 dependencies {
-    implementation "androidx.appcompat:appcompat:1.0.2"
-    implementation "com.google.android.material:material:1.0.0"
-    implementation project(':library')
+    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
+    implementation project(path: ':library')
+    testImplementation 'junit:junit:4.12'
+
+    library_androidxImplementation 'androidx.appcompat:appcompat:1.2.0'
+    library_androidxImplementation 'androidx.constraintlayout:constraintlayout:2.0.1'
+    library_androidxImplementation 'androidx.navigation:navigation-fragment:2.3.0'
+    library_androidxImplementation 'androidx.navigation:navigation-ui:2.3.0'
+
+    libraryImplementation 'com.google.android.material:material:1.2.1'
+    //noinspection GradleCompatible
+    libraryImplementation 'com.android.support:appcompat-v7:28.0.0'
 }

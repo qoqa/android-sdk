@@ -3,7 +3,10 @@ package com.queue_it.shopdemo;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
@@ -12,16 +15,8 @@ import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.queue_it.androidsdk.*;
 import com.queue_it.androidsdk.Error;
-import com.queue_it.androidsdk.QueueITEngine;
-import com.queue_it.androidsdk.QueueITException;
-import com.queue_it.androidsdk.QueueListener;
-import com.queue_it.androidsdk.QueuePassedInfo;
-import com.queue_it.androidsdk.QueueService;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -74,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
                 editor.putString("eventOrAliasId", eventOrAliasId);
                 editor.putString("layoutName", layoutName);
                 editor.putString("language", language);
-                editor.apply();
+                editor.commit();
 
                 Toast.makeText(getApplicationContext(), "Please wait for your turn.", Toast.LENGTH_SHORT).show();
 
@@ -89,6 +84,11 @@ public class MainActivity extends AppCompatActivity {
                     public void onQueueViewWillOpen() {
                         Toast.makeText(getApplicationContext(), "onQueueViewWillOpen", Toast.LENGTH_SHORT).show();
                         queue_button.setEnabled(true);
+                    }
+
+                    @Override
+                    public void onUserExited() {
+                        Toast.makeText(getApplicationContext(), "onUserExited", Toast.LENGTH_SHORT).show();
                     }
 
                     @Override
@@ -108,9 +108,10 @@ public class MainActivity extends AppCompatActivity {
                         showResultActivity("Critical error: " + errorMessage, false);
                         queue_button.setEnabled(true);
                     }
+
                 });
                 try {
-                    queueITEngine.run(!enableCacheRadioButton.isChecked());
+                    queueITEngine.run(MainActivity.this, !enableCacheRadioButton.isChecked());
                 }
                 catch (QueueITException e) {
                     Toast.makeText(getApplicationContext(), "Please try again.", Toast.LENGTH_LONG).show();
